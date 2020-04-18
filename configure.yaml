@@ -1,0 +1,57 @@
+---
+- name: Configure RPi for music
+  hosts: rpis
+  become: true
+
+  tasks:
+  - name: Configure alsa
+    copy:
+      src: asound.conf
+      dest: /etc/asound.conf
+  - name: Install mpd
+    apt:
+      name: mpd
+      state: present
+  - name: Mount music share
+    mount:
+      path: /mnt/music
+      src: 192.168.1.240:/nfs/music
+      fstype: nfs
+      opts: defaults,nofail
+      state: mounted 
+  - name: Configure mpd
+    copy:
+      src: mpd.conf
+      dest: /etc/mpd.conf
+  - name: enable and start mpd
+    systemd:
+      name: mpd
+      state: restarted
+      enabled: yes
+  - name: Download spotifyd
+    get_url:
+      url: https://github.com/Spotifyd/spotifyd/releases/download/v0.2.24/spotifyd-linux-armhf-slim.tar.gz
+      dest: /home/pi/spotifyd.tar.gz
+      checksum: sha512:https://github.com/Spotifyd/spotifyd/releases/download/v0.2.24/spotifyd-linux-armhf-slim.sha512
+  - name: Extract spotifyd
+    unarchive:
+      src: /home/pi/spotifyd.tar.gz
+      dest: /usr/local/sbin
+      remote_src: yes
+  - name: Configure spotifyd
+    copy:
+      src: spotifyd.conf
+      dest: /etc/spotifyd.conf
+  - name: Create spotifyd cache
+    file:
+      path: /home/pi/spotifyd_cache
+      state: directory
+  - name: Install spotifyd service
+    copy:
+      src: spotifyd.service
+      dest: /lib/systemd/system/spotifyd.service
+  - name: Enable and run spotifyd
+    systemd:
+      name: spotifyd
+      state: restarted
+      enabled: yes
